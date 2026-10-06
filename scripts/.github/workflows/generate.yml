@@ -1,0 +1,38 @@
+name: Generate daily draft
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # 02:30 UTC = 08:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+
+      - name: Create draft
+        run: python scripts/generate.py generate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Commit draft
+        run: |
+          git config user.name "blog-bot"
+          git config user.email "blog-bot@users.noreply.github.com"
+          git add drafts
+          git commit -m "Add draft" || echo "nothing to commit"
+          git push
+
+      - name: Send to Telegram
+        run: python scripts/generate.py notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
